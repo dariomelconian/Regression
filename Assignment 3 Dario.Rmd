@@ -1,0 +1,498 @@
+---
+title: "Assignment 3"
+author: "Dario Melconian"
+date: "03/11/2020"
+output:
+  word_document: default
+  html_document: default
+---
+
+Question 1:
+
+a). Increasing the number of predictor variables will never decrease the R^2
+
+True.  Every time you add a predictor (increasing the number of predictors), the R^2 value increases, and never will decrease.  R^2 is designed to show correlation between independent random variables, and in the event that the predictor enhances the model would increase the R^2 value.  If a newly added predictor does not enhance the model, the R^2 value will simply remain the same and not increase.  It will never decrease with the addition of a new predictor.
+
+b). Multicollinearity affects the intrepretation of the regression coefficients.
+
+True.  Multicollinearity affects the interpretation of the regression coefficients as it reduces the strength of the model to identify independent variables that are infact statistically significant, and worthy of keeping in the model. 
+
+c). The variance inflation factor of βj depends on the R of the regression of the response variable y on the predictor variable xj.
+
+False.  The variance inflation factor quantifies the severity of the multicollinearity in the regression analysis.  It determines the validity of the regression data.  This variance inflation thus, has not to do with R^2 of the response variable. 
+
+d). A high leverage point is always highly influential.
+
+False.  It is true that an influential point will have a high leverage, however, the opposite is not always the truth.  It is perfectly possible that a high leverage point is not actually an influential point.  In some events, the predicted response, hypotheses test results, and slope coefficients are not actually affected by the inclusion of that certain high-leverage data point that is not properly fitting on the regression line.  Thus, in this case, it can easily be seen that the high leverage point that is significantly off the regression line is not actually deemed an influential point. 
+
+
+
+Question 2:
+
+a).
+```{r}
+importData = read.table("https://raw.githubusercontent.com/hgweon2/data/main/hw3-data.txt", header = TRUE, sep = ",")
+
+plot(importData)
+```
+The relationships between y and x1 seem to look pretty linear.  The relationship between y and x2 seems to be quite random.
+
+b).
+```{r}
+library(lmtest)
+
+fittedImportData = lm(importData)
+summary(fittedImportData)
+```
+
+Check the model assumptions:
+```{r}
+# check linearity assumption
+plot(fittedImportData, 1)
+```
+Thus, it can be seen that the linear assumption is violated.  The mean of the residuals varies systematically.  There is somewhat of a pattern, and randomness is not present.  Thus, this is evidence against the linear assumption.
+
+```{r}
+# check the equal variance assumption
+bptest(fittedImportData)
+```
+This p-value of 0.95 means that there is no evidence against H0.  Thus, it is fair to say that there is no violation for the variance assumption.
+
+```{r}
+# check the normality assumption 
+shapiro.test(resid(fittedImportData))
+```
+This p-value of 1.6e-05 implies there is sufficient evidence to conclude that the normal assumption has been violated. The H0 null hypothesis that there is normality can be rejected.  It has been violated. 
+
+c).
+```{r}
+# use Cook's Distance
+#cooks.distance(fittedImportData)
+
+influentialPoints = cooks.distance(fittedImportData) > 4 / length(cooks.distance(fittedImportData))
+sum(influentialPoints > 4/length(influentialPoints))
+
+# refer to specific points
+#influentialPoints = influentialPoints[influentialPoints == TRUE]
+#influentialPoints
+
+cooks.distance(fittedImportData)[influentialPoints]
+```
+Thus there are 14 influential points.  Their values are noted above. 
+
+d). 
+```{r}
+# check outliers
+outliers = abs(rstandard(fittedImportData)) > 2
+
+newIndex = which(influentialPoints)
+
+which(outliers[newIndex])
+#rstandard(fittedImportData)[outliers]
+```
+Thus, 5 are also outliers. 
+
+e).
+```{r}
+# remove the outliers from the data
+removablePoints = which(influentialPoints > 4/length(influentialPoints))
+newFittedImportData = importData[-removablePoints,]
+
+newFittedImportDataModel = lm(newFittedImportData)
+```
+
+```{r}
+# check for linearity 
+plot(newFittedImportDataModel, 1)
+```
+This plot has not changed from the initial plot, meaning that the assumption's validity has not changed.  It is still violated. 
+
+```{r}
+# equal variance assumption
+bptest(newFittedImportDataModel)
+```
+The equal variance assumption is still not violated.
+
+```{r}
+# normality assumption
+shapiro.test(resid(newFittedImportDataModel))
+```
+This normality test is still violated as the p-value is still 2.8e-05, proving the violation has remained existent. 
+
+Thus, overall, removing this points was not helpful in correcting the model assumptions.
+
+f).
+```{r}
+library(MASS)
+
+par(mfrow = c(1, 1))
+
+boxcox(newFittedImportDataModel)
+```
+It is easily seen that the optimal lambda is approximately at 0.5. 
+Thus, the transformation through boxcox was the correct decision.
+
+```{r}
+boxcox(newFittedImportDataModel, lambda = seq(-1, 1, by = 0.05))
+```
+Clearly seen on 0.5 here.
+
+```{r}
+# using reasonable lambda value
+lambda = -0.5
+
+# create new LM
+fitTransformedModel = lm(((y^(lambda) - 1) / (lambda)) ~ x1*x2, data = importData)
+
+par(mfrow = c(1, 2))
+
+# plot
+plot(resid(fitTransformedModel) ~ fitted(fitTransformedModel), col = "red", pch = 20, xlab = "Fitted", ylab = "Residual", main = "Fitted vs. Residual")
+
+abline(h = 0, col = "green", lwd = 2)
+
+# Norm QQ plot
+qqnorm(resid(fitTransformedModel, main = "Norm. QQplot"), col = "blue")
+qqline(resid(fitTransformedModel), col = "black")
+```
+Normality and Equal Variance assumptions seem to be violated based on the interpretation of these graphs.  
+
+```{r}
+bptest(fitTransformedModel)
+```
+These super low p-value concludes that there is a violation for the H0, thus there is a violation for the equal variance assumption.
+
+```{r}
+shapiro.test(resid(fittedImportData))
+```
+This test carries a p-value of 1.6e-05, which is conclusive enough to reject H0, and conclude that the normality assumption has been violated. 
+These tests, thus, were not helpful in fixing the violated assumptions. 
+
+
+Now for the new data set:
+```{r}
+boxcox(newFittedImportDataModel, lambda = seq(-1, 1, by = 0.05))
+```
+
+```{r}
+# plot
+lambda = 0.5
+
+fitTransformedModel = lm(((y^(lambda) - 1) / (lambda)) ~ x1*x2, data = newFittedImportData)
+
+par(mfrow = c(1, 2))
+
+plot(resid(newFittedImportDataModel) ~ fitted(newFittedImportDataModel), col = "red", pch = 20, xlab = "Fitted", ylab = "Residual", main = "Fitted vs. Residual")
+
+abline(h = 0, col = "green")
+
+# norm. QQ plot
+qqnorm(resid(newFittedImportDataModel), main = "QQ norm. plot", col = "blue")
+qqline(resid(newFittedImportDataModel))
+```
+
+```{r}
+bptest(newFittedImportDataModel)
+```
+This p-value shows no violation of equal variance. 
+
+```{r}
+shapiro.test(resid(newFittedImportDataModel))
+```
+This p-value of 2.83e-0.5 shows a violation for the normality assumption. 
+
+Therefore, this transformation helped with the BP test, in regards to equal variance.  However, it did not solve the normality assumption. 
+
+g).
+```{r}
+# create fit polynomial model 
+polynomialFittedModel = lm(y ~ x1 + x2 + I(x1^2) + I(x2^2), data = importData)
+summary(polynomialFittedModel)
+```
+
+```{r}
+# test if this linear model alternative is favourable over the previous:
+
+# linearity test
+qqnorm(resid(polynomialFittedModel), main = "QQ norm. plot", col = "blue")
+qqline(resid(polynomialFittedModel), col = "black")
+```
+It is easily seen that the assumption of linearity is not violated through the proof of this QQ norm plot, as the data fits this plot very well. No tails or skew.  
+
+```{r}
+# equal variance test
+bptest(polynomialFittedModel)
+```
+It is also easily seen here that the p-value of 0.626 is insignificant, and thus, it can be mentioned that the test for equal variance has not been violated.  There is no proof to reject H0 and say it has been violated. 
+
+```{r}
+# normality test
+shapiro.test(resid(polynomialFittedModel))
+```
+This p-value of 0.8 also easily proves that the normality assumption has not been violated, as cannot reject H0, and thus, there is no violation. 
+
+Thus, overall, this linear model polynomial method is proven to be preferred over the models of b) and f), as there are no violations of the assumptions like there were in the other models.  This polynomial linear model is best!
+
+h).
+```{r}
+polynomialFittedModelCubic = lm(y ~ x1 + x2 + I(x1^2) + I(x2^2) + I(x1^3) + I(x2^3), data = importData)
+summary(polynomialFittedModelCubic)
+```
+
+```{r}
+# test if this cubic linear model alternative is favourable over the previous quadratic one in g):
+
+# linearity test
+qqnorm(resid(polynomialFittedModelCubic), main = "QQ norm. plot", col = "blue")
+qqline(resid(polynomialFittedModelCubic), col = "black")
+```
+This shows that the linearity assumption has not been violated.  The data fits the line very well.
+
+```{r}
+# equal variance test
+bptest(polynomialFittedModelCubic)
+```
+Obviously, no violation of the equal variance as p-value is high.  This p-value of 0.638 shows a slight increase from the p-value in part g), showing it should be preferred slightly over the quadratic in this respect.  Obviously, it does not violate the assumption for equal variance, like b) or f) do.  It is slightly higher p-value than g) and thus preferred. 
+
+```{r}
+# normality test
+shapiro.test(resid(polynomialFittedModelCubic))
+```
+This p-value obviously proves no violation of the normality assumption.  The p-value of 0.858 is slightly higher than in the quadratic model where it was 0.833, meaning that this cubic model once again, is preferred slightly over the quadratic model. It does not violate. 
+
+Overall, it should be easily seen that this cubic linear model for the model data given is best in cubic, over the quadratic in part g), and the other models in b) and f).  This is because the p-value's are highest, and the data best-fits the QQ norm plot from this cubic model.  Additionally, it does not violate any assumptions, like g).  However, its higher p-values are what separate it from g), and thus I can confidently say that this cubic linear model is the best and most preferred linear model. 
+
+
+
+Question 3:
+```{r}
+library(CARS)
+
+#install.packages("faraway")
+library(faraway)
+```
+
+a).
+```{r}
+model_a = lm(mpg ~ cyl + disp + hp + wt + drat, data = mtcars)
+
+summary(model_a)
+
+# obtain VIF
+vif(model_a)
+```
+The p-value for some predictors is high, despite the overall p-value for the summary to be small (5.6e-10). 
+I assume this is due to the fact that some predictors are highly correlated with each other. 
+
+There is 1 predictor with a vif above 10, at 10.46, and that is 'disp' predictor.  This is extremely high.  This results in an increase of inflation for each estimator's variance. 
+This value above 10 insists that regression coefficients are poorly estimated due to the multicollinearity. 
+
+This is bad because collinearity inflates the variance's of at least one estimated regression coefficient.  This means that the precision of the estimated coefficients decreases, and a result, the statistical power of the regression model is weakened and reduced. 
+
+b).
+```{r}
+model_b = lm(mpg ~ cyl + hp + wt + drat, data = mtcars)
+
+summary(model_b)
+
+# obtain VIF
+vif(model_b)
+```
+
+Not using built-in function to compute vif:
+```{r}
+# model cyl
+model_cyl = (summary(lm(cyl ~ hp + wt + drat, data = mtcars))$r.squared)
+
+# calculate vif for cyl 
+vif_cyl = 1 / (1 - model_cyl)
+
+# call it
+vif_cyl
+
+# model hp
+model_hp = (summary(lm(hp ~ cyl + wt + drat, data = mtcars))$r.squared)
+
+# calculate vif for hp 
+vif_hp = 1 / (1 - model_hp)
+
+# call it
+vif_hp
+
+# model wt
+model_wt = (summary(lm(wt ~ hp + cyl + drat, data = mtcars))$r.squared)
+
+# calculate vif for wt
+vif_wt = 1 / (1 - model_wt)
+
+# call it
+vif_wt
+
+# model drat
+model_drat = (summary(lm(drat ~ hp + wt + cyl, data = mtcars))$r.squared)
+
+# calculate vif for drat 
+vif_drat = 1 / (1 - model_drat)
+
+# call it
+vif_drat
+```
+The values match the vif function, so obviously manually was done properly. 
+
+Overall, there is not multicollinearity at a level like before with disp predictor included (over 10), however, it should still be noted that a vif value of 6.17 for cyl predictor is still concerning and can be weakening the strength of this linear model. 
+
+No predictors are above 10.
+
+c).
+```{r}
+# analyzes each combination of predictors and comes up with the ideal set of predictors for the regression analysis for the response 'mpg'. 
+fittedStepAIC = step(lm(mpg ~ 1, data = mtcars), direction = "forward", scope = formula(mpg ~ cyl + disp + hp + drat + wt), trace = 0)
+
+fittedStepAIC
+```
+Thus, it is easily seen that the model using the best predictor combination to predict mpg is the model including wt, cyl, and hp. 
+
+d).
+```{r}
+# make step model for BIC backward
+n = nrow(mtcars)
+fittedStepBIC = step(model_a, direction = "backward", k = log(n), trace =  0)
+
+fittedStepBIC
+
+# make its linear model
+model_BIC = lm(formula = mpg ~ cyl + wt, data = mtcars)
+summary(model_BIC)
+```
+Thus, the ideal model through BIC is mpg with predictors cyl and wt, as the BIC value is 67.6. 
+
+Compare AIC and BIC
+```{r}
+model_AIC = lm(formula = mpg ~ cyl + hp + wt, data = mtcars)
+
+# model_BIC created above
+
+# compare them
+anova(model_AIC, model_BIC)
+```
+The p-value of 0.14 is greater than the alpha 0.05, and this means fail to reject H0, and thus, BIC model is preferred.
+
+
+
+
+Question 4:
+```{r}
+#install.packages("faraway")
+library(faraway)
+
+data(prostate)
+
+# create the 3 models A, B, C:
+
+model_A = lm(lpsa ~ lcavol + lweight + svi, data = prostate)
+
+model_B = lm(lpsa ~ lcavol + lweight + svi + lbph, data = prostate)
+
+model_C = lm(lpsa ~ lcavol + lweight + svi + lbph + lcp + gleason, data = prostate)
+```
+
+a).
+```{r}
+# Find best model in terms of..,
+
+# AIC
+AIC(model_A, model_B, model_C)
+
+# BIC
+BIC(model_A, model_B, model_C)
+
+# adjusted R^2
+summary(model_A)$adj.r.squared
+
+summary(model_B)$adj.r.squared
+
+summary(model_C)$adj.r.squared
+```
+Thus, it can easily be seen that the best model in terms of AIC is model B at 215.92.  
+Additionally, the best model in terms of BIC is model A at 229.47.
+Lastly, the adjusted R^2 value is best for model B at 0.62.
+
+b).
+```{r}
+# find best model in terms of PRESS
+sqrt(sum((resid(model_A) / (1 - hatvalues(model_A)))^2) / n)
+
+sqrt(sum((resid(model_B) / (1 - hatvalues(model_B)))^2) / n)
+
+sqrt(sum((resid(model_C) / (1 - hatvalues(model_C)))^2) / n)
+```
+Thus, model B has the best model in terms of PRESS, as it is the lowest value at 0.724. 
+
+c).
+```{r}
+# best model using R^2 as quality criterion 
+summary(model_A)$r.squared
+
+summary(model_B)$r.squared
+
+summary(model_C)$r.squared
+```
+The best R^2 value is from model C, at 0.64.  However, it is clear that this is not a good measure for model comparison because as the number of predictors increase (from model A to C), it is obvious that R^2 can only increase. 
+
+d).  
+```{r}
+set.seed(10)
+rand_index = sample(nrow(prostate))
+prostate2 = prostate[rand_index,]
+
+n= nrow(prostate)
+
+# find the best model in terms of RMSE using 2-fold cross validation
+k = 2
+
+RMSE_modelA = RMSE_modelB = RMSE_modelC = numeric(k)
+
+# creating the folds
+folds = cut(1:n, breaks = k, labels = FALSE)
+
+# perform 2-fold cross-validation
+for (i in 1:k) {
+  
+  # find indices for test data
+  testIndex = which(folds == i)
+  
+  # obtain data
+  testData = prostate2[-testIndex,]
+  
+  trainingData = prostate2[testIndex,]
+  
+  # create cross validation models 
+  crossValidation_modelA = lm(lpsa ~ lcavol + lweight + svi, data = trainingData)
+  
+  crossValidation_modelB = lm(lpsa ~ lcavol + lweight + svi + lbph, data = trainingData)
+
+  crossValidation_modelC = lm(lpsa ~ lcavol + lweight + svi + lbph + lcp + gleason, data = trainingData)
+
+  # obtain RMSE on the testData
+  residModelA = testData[,2] - predict(crossValidation_modelA, newdata = testData)
+  RMSE_modelA[i] = sqrt(sum(residModelA^2)/ nrow(testData))
+  
+  residModelB = testData[,2] - predict(crossValidation_modelB, newdata = testData)
+  RMSE_modelB[i] = sqrt(sum(residModelB^2)/ nrow(testData))
+
+  residModelC = testData[,2] - predict(crossValidation_modelC, newdata = testData)
+  RMSE_modelC[i] = sqrt(sum(residModelC^2)/ nrow(testData))
+}
+
+# ith value is RMSE for the ith fold
+#RMSE_modelA
+
+# fit values
+mean(RMSE_modelA)
+
+mean(RMSE_modelB)
+
+mean(RMSE_modelC)
+```
+Thus, the preferred model by RMSE through cross-validation is model B, with the lowest value for mean of the model. 
+

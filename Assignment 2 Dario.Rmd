@@ -1,0 +1,313 @@
+---
+title: "Assignment 2"
+author: "Dario Melconian"
+date: "22/10/2020"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+Question 1:
+```{r}
+set.seed (100)
+sub_index = sample(nrow(mtcars),20,replace=FALSE) 
+mtcars2 = mtcars[sub_index,c(1,2,4)]
+```
+
+a).
+```{r}
+plot(mtcars2, col = "red")
+
+str(mtcars2)
+
+pairs(~mpg + cyl + hp, data = mtcars2, main = "Scatterplot Matrix for MTcars2")
+```
+The relationship between hp and mpg is decreasing, with a negative slope, but it is non linear.
+Relationship between cyl and mpg is generally pretty linear, decreasing with negative slope. 
+
+b).
+```{r}
+# create linear model for multiple linear regression equation
+lm_mtcars2 = lm(mpg~cyl + hp, data = mtcars2)
+summary(lm_mtcars2)
+```
+R^2 = 0.7772.
+Thus, 77.78% of the variation in fuel consumption is explained by my fitted model. 
+
+c).
+```{r}
+confint(lm_mtcars2, level = 0.90)
+```
+The 90% CI for Beta_cyl, is (-3.21, -1.21).
+
+d).
+```{r}
+# model A
+predict(lm_mtcars2, newdata = data.frame(cyl = 4, hp = 90))
+
+# model B
+predict(lm_mtcars2, newdata = data.frame(cyl = 6, hp = 150))
+
+# model C
+predict(lm_mtcars2, newdata = data.frame(cyl = 8, hp = 210))
+```
+Thus, model A predicts a fuel efficiency of 25.10 mpg.  Model B predicts a fuel efficiency of 20.03 mpg.  Model C predicts a fuel efficiency of 14.96 mpg. 
+
+e).
+```{r}
+# can model C actually produce a car with 3 mpg?
+predict(lm_mtcars2, newdata = data.frame(cyl = 8, hp = 210), interval = "prediction", level = 0.95)
+```
+Thus, when predicting the value for model C, I also created a confidence interval at alpha = 0.95.  Hence, I can conclude that 95% CI for my fitted model at cyl=8, hp=210 would yield a fitted value of 14.96 mpg, with a 95% CI for (9.72, 20.21). This means that I can be 95% certain the range of values (9.72, 20.21) contains the true mean of the population for mpg at the given cyl and hp. 
+```{r}
+predict(lm_mtcars2, newdata = data.frame(cyl = 8, hp = 210), interval = "prediction", level = 0.99)
+```
+Even at an alpha = 0.99, the range becomes (7.76, 22.17).  I can be 99% certain the range of these values contains the true mean of the population for mpg at the given cyl and hp.  
+Thus, it is easily seen and clearly evident that it is NOT likely at all for the actual fuel efficiency for model C to be at 3 mpg.  This is nearly impossible. 
+
+f). 
+```{r}
+SSRdf = 2
+SSEdf = 17
+SSTdf = 19
+
+SSR = sum((fitted(lm_mtcars2) - mean(mtcars2$mpg))^2)
+SSE = sum((mtcars2$mpg - fitted(lm_mtcars2))^2)
+SST = SSE + SSR
+
+MSR = SSR/SSRdf
+MSE = SSE/SSEdf
+
+F_Statistic = MSR/MSE
+
+anovaTABLE = matrix(c(SSR, SSRdf, MSR, F_Statistic, SSE, SSEdf, MSE, "x", SST, SSTdf, "x", "x"), ncol = 4, byrow = TRUE)
+
+colnames(anovaTABLE) = c("Sum Squares", "df", "Mean Squares", "F-stat")
+rownames(anovaTABLE) = c("Regression", "Error", "Total")
+
+anovaTABLE = as.table(anovaTABLE)
+anovaTABLE
+```
+
+g). 
+```{r}
+# Test the statement “None of the two predictors has a significant linear relationship with the response.
+summary(lm_mtcars2)
+```
+The p-value of 2.87e-06 is super small.  Thus reject null hypothesis. 
+We can conclude there is a linear relationship between both predictors and the response variable, rejecting the null hypothesis. 
+
+h).
+```{r}
+summary(lm_mtcars2)
+```
+The p-value for Beta_hp is 0.40114 implies a large p-value.  Thus, because this p-value is high, I fail to reject the null hypothesis Ho, at alpha significance of 0.95.
+
+i).
+```{r}
+lm_hp = lm(mpg ~ hp, data = mtcars2)
+summary(lm_hp, level = 0.95)
+```
+Thus, must fail to reject the null hypothesis H0 for i)., as the p-value is 8.58e-05, which is much less than the p-value of 0.05.  This means must reject the null hypothesis. 
+
+
+
+j).
+Conclusions from parts h) and i) were not consistent, as h). was a rejected null, and i). was a fail to reject null hypothesis.  
+
+```{r}
+set.seed (2)
+sub_index = sample(nrow(mtcars),27,replace=FALSE) 
+mtcars3 = mtcars[sub_index,c(1:4 ,10)]
+```
+
+k).
+Yes.  In fact, if the p-values are small, then it can be concluded that at least one predictor is still important given the circumstances.
+However, if for all predictors, the p-values are greater than the alpha value of 0.05, it can be concluded that there is no linear relationship.
+
+In other words, a predictor that has a low p-value is likely to be a meaningful to the model because changes in the predictor's value are related to changes in the response variable.
+
+In contrast, a larger (insignificant) p-value (> 0.05) suggests that changes in the predictor are not associated with changes in the response.
+
+Thus, if all predictors' p-values are >0.05, this means that the changes in predictors are NOT associated with the changes in the response variable.  Thus, none of the predictors are linearly related to the response variable at alpha = 0.05. 
+
+l).
+```{r}
+redoneModelCyl = lm(mpg ~ cyl + disp + hp + gear, data = mtcars3)
+redoneModel = lm(mpg ~ disp + hp + gear, data=mtcars3)
+anova(redoneModel, redoneModelCyl)
+
+```
+p-value 0.30 is greater than alpha (0.1), so it can be concluded that the predictors can be dropped, as they are deemed insignifanct at alpha 0.1, and fail to reject null hypothesis Ho. 
+
+
+
+Question 2:
+```{r}
+set.seed (50)
+idx = sample(32,25,replace=FALSE) 
+mtcars2 = mtcars [idx, ]
+mtcars2$cyl = as.factor(mtcars2$cyl)
+```
+
+a).
+```{r}
+LinearModelMPG = lm(mpg~wt + cyl, data = mtcars2)
+beta_hats = coef(LinearModelMPG)
+
+fittedVal = beta_hats[1]+ (3*beta_hats[2]) + beta_hats[3]
+fittedVal
+```
+Therefore, the fitted value at weight = 3 and cylinder = 6 is 19.84 mpg. 
+
+b).
+```{r}
+LinearModelMPGNull = lm(mpg ~ wt, data = mtcars2)
+anova(LinearModelMPG, LinearModelMPGNull)
+```
+
+The p-val is 0.00868, which is < 0.05 (alpha), so it can be concluded that the null hypothesis Ho is rejected, and that cyl is an important predictor given wt being used as well as an additional predictor. 
+
+c).
+```{r}
+# weight wt = 3, cylinder cyl = 8, obtain fitted value MPG
+LinearModelMPGc = lm(mpg ~ wt * cyl, data = mtcars2)
+
+beta_hatsC = coef(LinearModelMPGc)
+
+beta_hatsC[1] + (3*beta_hatsC[2]) + beta_hatsC[4] + (3*beta_hatsC[6])
+```
+Therefore, the fitted value at of mpg at weight = 3 and cylinder = 8 is 17.03 mpg.
+
+d).
+```{r}
+# There is no significant interaction effect between two predictors - tested
+anova(LinearModelMPGc, LinearModelMPG)
+```
+Thus, it can be concluded that there are no interaction effects, as p-value is 0.155, and alpha = 0.05.  This means p-value > alpha, so reject Ho null hypothesis. We cannot reject it given the data due to the reason that the p-value > alpha. 
+
+
+Question 3:
+```{r}
+data1 = read.csv(url("https://raw.githubusercontent.com/hgweon2/ss3859/master/hw2-data-1.csv"))
+data1
+
+lm_model3 = lm(y ~ x1 + x2 + x3, data = data1)
+```
+
+a).
+```{r}
+# x2 = 50 and x3 = 7, one unit increase in x1 increases the estimated mean of y by A units. 
+lm_data1 = lm(y ~ x1 + x2 + x3 + x1 * x2 + x2 * x3 + x1 * x3 + x1 * x2 * x3, data = data1)
+
+# display the data
+summary(lm_data1)
+
+# x1 = 4
+dataFrame1 = data.frame(x1 = 4, x2 = 50, x3 = 7)
+predict(lm_data1, dataFrame1)
+
+# x1 = 5
+dataFrame2 = data.frame(x1 = 5, x2 = 50, x3 = 7)
+predict(lm_data1, dataFrame2)
+
+# find the difference to solve for A
+A = predict(lm_data1, dataFrame2) - predict(lm_data1, dataFrame1)
+A
+
+```
+Thus, A = 3.995
+
+b).
+```{r}
+# residual plot looks fine
+plot(fitted(lm_data1), resid(lm_data1), col = "grey", pch = 20, xlab = "Fitted", ylab = "Residual",cex=2, main = "data1: Fitted versus Residuals")
+abline(h = 0, col = "darkorange", lwd = 2)
+
+qqnorm(resid(lm_data1), col = "blue")
+
+library(lmtest)
+bptest(lm_data1)
+```
+
+c).
+```{r}
+#library(lmtest)
+bptest(lm_data1)
+shapiro.test(resid(lm_data1))
+plot(lm_data1)
+```
+We are checking H0: constant variance for all i.
+
+For the variance, we use bptest, and the p-value is 0.49.  This concludes that p-value > 0.05, so we fail to reject the null hypothesis that the variance is constant.   No evidence against H0. 
+
+We are checking the normality now.  The p-value of 0.288 > 0.05, so again, we fail to reject the null hypothesis.  No evidence against our normal assumption. 
+
+In regards to linearity, the line is not completely horizontal at 0, so the linear relationship seems to be violated. 
+
+d).
+```{r}
+model_reduced = lm(y ~ x1 + x2 + x3 + x1 * x2 + x2 * x3 + x1 * x3, data = data1)
+
+anova(model_reduced, lm_data1)
+```
+A three-way interaction term was not needed because this reduced model under the null hypothesis yielded ANOVA results between the reduced model and the original lm_data1 from question 3.  It is easily seen that F-statistic is 0.6055 and the p-value is 0.04385.  Thus, it is concluded that the three-way interaction predictor was not needed.  Thus, fail to reject H0.
+
+e).
+```{r}
+# testing statement "there are no interaction effects between the predictors" at 0.05 alpha:
+# H0: no interaction effects between the predictors.
+model_reduced_2 = lm(y ~ x1 + x2 + x3, data = data1)
+
+anova(model_reduced_2, lm_data1)
+```
+The reduced model under this null hypothesis is my variable 'model_reduced_2'.  It is easily seen that F-statistic is 4.88 and the p-value is 0.0013.  This means that the p-value < alpha, so we can reject the null hypothesis H0.  Thus, at least one of the predictors are significant. 
+
+
+
+Question 4:
+```{r}
+data2 = read.csv(url("https://raw.githubusercontent.com/hgweon2/ss3859/master/hw2-data-2.csv"))
+data2
+
+#fitted model
+lm_data2 = lm(y ~ x, data = data2)
+
+#residual plot
+plot(fitted(lm_data2), resid(lm_data2), col = "blue", pch = 20, xlab = "Fitted", ylab = "Residuals", main = "Resid plot ")
+abline(h = 0, col = "darkorange", lwd = 2)
+
+#library(lmtest)
+bptest(lm_data2)
+shapiro.test(resid(lm_data2))
+plot(lm_data2)
+```
+The linear relationship is violated as the dark orange line is not fully horizontal throughout the value of 0 for the residual. 
+BP test p-value of 0.924 means that there is no marginal evidence against H0, and must fail to reject the null hypothesis. 
+The shapiro normality test p value is 0.112, which is greater than 0.05, so there is no evidence against the original assumption.
+Linearity test yields that the line is not approximately horizontal at 0. Carries more of a curved non-linear relationship. 
+
+
+
+Question 5: 
+```{r}
+data3 = read.csv(url("https://raw.githubusercontent.com/hgweon2/ss3859/master/hw2-data-3.csv"))
+data3
+
+#fitted model
+lm_data3 = lm(y ~ x, data = data3)
+
+# residual plot
+plot(fitted(lm_data3), resid(lm_data3), col = "blue", pch = 20, xlab = "Fitted", ylab = "Residuals", main = "Resid plot ")
+abline(h = 0, col = "darkorange", lwd = 2)
+
+#library(lmtest)
+bptest(lm_data3)
+shapiro.test(resid(lm_data3))
+plot(lm_data3)
+```
+The linear relationship is violated as the dark orange line is not fully horizontal throughout the value of 0 for the residual. 
+BP test p-value is 2.056e-06 means that there is marginal evidence against the null hypothesis H0, thus it is rejected, as alpha 0.05 is greater than the BP p-value.  As a result, H0 is rejected. 
+The shapiro normality test p value is 0.003, which is less than 0.05, so there is evidence to reject the null hypothesis here as well. 
+Linearity test yields that the line is linear close to 0 throughout the graoh and thus the linearity assumption is violated, and there is linearity.
